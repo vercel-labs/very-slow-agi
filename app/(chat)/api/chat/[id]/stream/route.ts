@@ -11,6 +11,8 @@ import { createUIMessageStream, JsonToSseTransformStream } from 'ai';
 import { getStreamContext } from '../../route';
 import { differenceInSeconds } from 'date-fns';
 
+export const maxDuration = 800;
+
 export async function GET(
   _: Request,
   { params }: { params: Promise<{ id: string }> },

@@ -4,6 +4,7 @@ import {
   wrapLanguageModel,
 } from 'ai';
 import { xai } from '@ai-sdk/xai';
+import { gateway } from '@ai-sdk/gateway';
 import {
   artifactModel,
   chatModel,
@@ -23,13 +24,13 @@ export const myProvider = isTestEnvironment
     })
   : customProvider({
       languageModels: {
-        'chat-model': xai('grok-2-vision-1212'),
+        'chat-model': gateway('anthropic/claude-4-sonnet'),
         'chat-model-reasoning': wrapLanguageModel({
-          model: xai('grok-3-mini-beta'),
+          model: gateway('anthropic/claude-4-opus'),
           middleware: extractReasoningMiddleware({ tagName: 'think' }),
         }),
-        'title-model': xai('grok-2-1212'),
-        'artifact-model': xai('grok-2-1212'),
+        'title-model': gateway('anthropic/claude-3.5-haiku'),
+        'artifact-model': gateway('anthropic/claude-3.5-sonnet'),
       },
       imageModels: {
         'small-model': xai.imageModel('grok-2-image'),

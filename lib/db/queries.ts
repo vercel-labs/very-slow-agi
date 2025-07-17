@@ -514,7 +514,7 @@ export async function createStreamId({
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
-      'Failed to create stream id',
+      'Failed to create stream id: ' + error,
     );
   }
 }
@@ -532,7 +532,7 @@ export async function getStreamIdsByChatId({ chatId }: { chatId: string }) {
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
-      'Failed to get stream ids by chat id',
+      'Failed to get stream ids by chat id: ' + error,
     );
   }
 }
