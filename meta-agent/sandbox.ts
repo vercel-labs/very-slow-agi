@@ -4,38 +4,81 @@ import { setTimeout } from "timers/promises";
 import { createMcpPrompt } from "./create-mcp-prompt";
 import { experimental_createMCPClient as createMCPClient } from "ai";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { createClient } from "redis";
 
 if (!process.env.ANTHROPIC_API_KEY) {
   throw new Error("ANTHROPIC_API_KEY is not set");
 }
 
-declare global {
-  var activeSandbox: SandboxEnv | undefined;
+const redis = createClient({
+  url: process.env.REDIS_URL,
+});
+const connectPromise = redis.connect();
+async function getRedis() {
+  await connectPromise;
+  return redis;
 }
 
 interface SandboxEnv {
   sandbox: Sandbox;
   getUrl: () => Promise<string>;
-  index: number;
+  id: string;
 }
 
-let index = 0;
+interface SandboxInfo {
+  id: string;
+  expiresAt: number;
+  url: string;
+}
+
 export async function createSandbox(): Promise<SandboxEnv | undefined> {
+  const redis = await getRedis();
+  const key = `sandbox:main5`;
+  const sandboxInRedis = await redis.get(key);
+  if (sandboxInRedis) {
+    const sandboxInfo = JSON.parse(sandboxInRedis) as SandboxInfo;
+    if (sandboxInfo.expiresAt - ms("10m") > Date.now()) {
+      console.log("Using sandbox from redis", sandboxInfo.id);
+      return {
+        id: sandboxInfo.id,
+        getUrl: async () => sandboxInfo.url,
+        sandbox: await Sandbox.get({
+          sandboxId: sandboxInfo.id,
+        }),
+      };
+    }
+  }
   if (!process.env.ANTHROPIC_API_KEY) {
     throw new Error("ANTHROPIC_API_KEY is not set");
   }
+  console.log("Creating sandbox");
   const sandbox = await Sandbox.create({
     source: {
       url: "https://github.com/uncurated-tests/mcp-in-sandbox.git",
       type: "git",
+      username: 'x-access-token',
+      password: process.env.GIT_ACCESS_TOKEN!,
     },
     resources: { vcpus: 4 },
     // Timeout in milliseconds: ms('10m') = 600000
     // Defaults to 5 minutes. The maximum is 45 minutes.
-    timeout: ms("20m"),
+    timeout: ms("45m"),
     ports: [3000],
     runtime: "node22",
   });
+  await redis.set(key, JSON.stringify({
+    id: sandbox.sandboxId,
+    expiresAt: Date.now() + ms("44m"),
+    url: sandbox.domain(3000),
+  }));
+  await sandbox.writeFiles([
+    {
+      path: ".git/cr",
+      content: Buffer.from(JSON.stringify({
+        dependencies: {},
+      })),
+    },
+  ]);
 
   console.log(`Installing dependencies...`);
   const install = await sandbox.runCommand({
@@ -84,7 +127,7 @@ export async function createSandbox(): Promise<SandboxEnv | undefined> {
   await setTimeout(500);
   let exposedUrl: string | null = null;
   return {
-    index,
+    id: sandbox.sandboxId,
     getUrl: async () => {
       if (exposedUrl) {
         return exposedUrl;
@@ -117,6 +160,43 @@ export async function createSandbox(): Promise<SandboxEnv | undefined> {
   };
 }
 
+export async function commitAndPush() {
+  const sandbox = await createSandbox();
+  if (!sandbox) {
+    throw new Error("Failed to create sandbox");
+  }
+  await sandbox.sandbox.runCommand({
+    cmd: "git",
+    args: ["config", "--global", "user.email", "malte@vercel.com"],
+    stderr: process.stderr,
+    stdout: process.stdout,
+  });
+  await sandbox.sandbox.runCommand({
+    cmd: "git",
+    args: ["config", "--global", "user.name", "Very Slow AGI"],
+    stderr: process.stderr,
+    stdout: process.stdout,
+  });
+  await sandbox.sandbox.runCommand({
+    cmd: "git",
+    args: ["add", "."],
+    stderr: process.stderr,
+    stdout: process.stdout,
+  });
+  await sandbox.sandbox.runCommand({
+    cmd: "git",
+    args: ["commit", "-m", "Update MCP tools"],
+    stderr: process.stderr,
+    stdout: process.stdout,
+  });
+  await sandbox.sandbox.runCommand({
+    cmd: "git",
+    args: ["push", `https://${process.env.GIT_ACCESS_TOKEN}@github.com/uncurated-tests/mcp-in-sandbox.git`],
+    stderr: process.stderr,
+    stdout: process.stdout,
+  });
+}
+
 export async function createMcpTool(task: string, toolName: string) {
   return createMcpToolInternal(task, toolName);
 }
@@ -124,9 +204,9 @@ export async function createMcpTool(task: string, toolName: string) {
 export async function getCurrentMcpTools(
   sandbox: SandboxEnv | undefined = undefined
 ) {
-  console.log("Getting current MCP tools", globalThis.activeSandbox?.index);
-  const env = sandbox || globalThis.activeSandbox || (await createSandbox());
-  globalThis.activeSandbox = env;
+  
+  const env = sandbox || (await createSandbox());
+  console.log("Getting current MCP tools", env?.sandbox.sandboxId);
   if (!env) {
     return {};
   }
@@ -139,10 +219,9 @@ export async function getCurrentMcpTools(
 }
 
 export async function createMcpToolInternal(task: string, toolName: string) {
-  const env = globalThis.activeSandbox || (await createSandbox());
-  globalThis.activeSandbox = env;
+  const env = await createSandbox();
   if (!env) {
-    return { success: false, error: "Failed to create sandbox" };
+    throw new Error("Failed to create sandbox");
   }
   const prompt = createMcpPrompt(task, toolName);
   console.log("Running claude code", prompt);

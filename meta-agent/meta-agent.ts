@@ -1,10 +1,19 @@
 import { streamText, tool } from "ai";
 import { z } from "zod";
-import { createMcpTool, getCurrentMcpTools } from "./sandbox";
+import { commitAndPush, createMcpTool, getCurrentMcpTools } from "./sandbox";
 
 const metaGenerateTextInternal = async (obj: any) => {
   const tools = {
     ...(await getCurrentMcpTools()),
+    commitAndPush: tool({
+      inputSchema: z.object({}),
+      outputSchema: z.boolean(),
+      description: `This tool is used to commit and push the generated tools to the git repository so that they are available after the underlying infrastructure restarts.`,
+      execute: async () => {
+        await commitAndPush();
+        return true;
+      },
+    }),
     ...obj.tools,
     ...{
       generateToolToSolveTask: tool({
@@ -33,6 +42,7 @@ ask for a tool to get the weather of a given city.`),
         }),
         outputSchema: z.boolean(),
         execute: async ({ task, toolName }) => {
+          try {
           console.log("Creating MCP tool", toolName);
           const result = await createMcpTool(task, toolName);
           console.log("Result", result);
@@ -42,7 +52,11 @@ ask for a tool to get the weather of a given city.`),
               tools[name] = tool;
             }
           }
-          return result.success;
+            return result.success;
+          } catch (error) {
+            console.error("Error creating MCP tool", error);
+            return false;
+          }
         },
       }),
     },

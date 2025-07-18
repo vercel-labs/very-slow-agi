@@ -10,6 +10,7 @@ For example, give examples of the input and output, and provide a description of
 examples for what it might be used for.
 You do not have access to any APIs key. If you need to access the internet, it must be to
 publicly available HTTP APIs or scraping from web pages.
+You can install npm packages using the 'pnpm add' command.
 
 Task: ${task}`;
 }
