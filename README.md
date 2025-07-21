@@ -12,4 +12,4 @@ There is a second tool to push the generated code to a git repository. [Over her
 
 ## Why
 
-Running Claude Code is excruciantingly slow, yet it is also insanely powerful. This project provides an eye into a future where "LLM with tools in a loop" can do almost anything. And while it might be slow, computers are relentless: They'll keep running that loop until they figured it out.
+Running Claude Code is excruciatingly slow, yet it is also insanely powerful. This project provides an eye into a future where "LLM with tools in a loop" can do almost anything. And while it might be slow, computers are relentless: They'll keep running that loop until they figured it out.
