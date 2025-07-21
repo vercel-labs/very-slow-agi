@@ -5,3 +5,11 @@ Very Slow AGI is an AI with a single very special tool: `generateToolToSolveTask
 <img width="1055" height="632" alt="Graphic showing how very slow AGI works" src="https://github.com/user-attachments/assets/4094b454-acf5-44b7-bf67-c87212b8100f" />
 
 There is a lot of code in this repository (it's a fork of [Chat SDK](https://chat-sdk.dev/)). But you can ignore it all, and [start your code reading journey here](https://github.com/vercel-labs/very-slow-agi/blob/main/meta-agent/meta-agent.ts).
+
+## Persist to Git
+
+There is a second tool to push the generated code to a git repository. [Over here you can see the tools I generated](https://github.com/vercel-labs/very-slow-agi-sandbox/blob/main/app/%5Btransport%5D/route.ts) while playing around with this (and yes `count_letter_occurrences` enables LLMs to count the Rs in strawberry, hence the name of this project). 
+
+## Why
+
+Running Claude Code is excruciantingly slow, yet it is also insanely powerful. This project provides an eye into a future where "LLM with tools in a loop" can do almost anything. And while it might be slow, the AI is not as impatient as us humans, and will eventually come up with solutions.
